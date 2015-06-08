@@ -63,11 +63,11 @@ int main(int argc, char **argv) {
 
     ROS_INFO("Started");
     /// Load robot name
-    nh.param<std::string>("robot_name", robot_name, "robot_model");
+    nh.param<std::string>("robot_name", robot_name, "mobile_base");
     /// Service to set a new position
     client = nh.serviceClient<gazebo_msgs::SetModelState>("/gazebo/set_model_state");
     /// Subscriber to receive information from position and orientation robot
-    ros::Subscriber sub = nh.subscribe("/gazebo/set_model_state", 1000, positionCallback);
+    ros::Subscriber sub = nh.subscribe("/gazebo/position_model_state", 1000, positionCallback);
 
     /// Process remainder of ROS callbacks separately, mainly ControlManager related
     ros::spin();
