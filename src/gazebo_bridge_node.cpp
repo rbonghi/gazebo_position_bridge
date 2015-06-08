@@ -10,7 +10,7 @@
 *     * Redistributions in binary form must reproduce the above copyright
 *       notice, this list of conditions and the following disclaimer in the
 *       documentation and/or other materials provided with the distribution.
-*     * Neither the name of Officine Robotiche. nor the
+*     * Neither the name of Raffaello Bonghi. nor the
 *       names of its contributors may be used to endorse or promote products
 *       derived from this software without specific prior written permission.
 *
@@ -30,29 +30,25 @@
 */
 
 #include <ros/ros.h>
-#include <gazebo_msgs/GetModelState.h>
+#include <nav_msgs/Odometry.h>
 #include <gazebo_msgs/SetModelState.h>
 
+
+
 ros::ServiceClient client;
+std::string robot_name;
 
-void get_model_state(const ros::TimerEvent&)
+void positionCallback(const nav_msgs::Odometry::ConstPtr& msg)
 {
-    gazebo_msgs::GetModelState srv;
-    ROS_INFO("Callback 1 triggered");
-    if (client.call(srv)) {
-        ROS_INFO("Sum: %ld", (long int)srv.response.pose.position.x);
-    } else {
-        ROS_ERROR("Failed to call service /gazebo/get_model_state");
-    }
-}
-
-void set_model_state(const ros::TimerEvent&)
-{
+    /// Build message service for Gazebo
     gazebo_msgs::SetModelState srv;
-    srv.request.model_state.model_name = "robot -- TODO";
-    //srv.request.model_state.pose
-    //"{model_state: { model_name: rrbot, pose: { position: { x: 1, y: 1 ,z: 10 }, orientation: {x: 0, y: 0.491983115673, z: 0, w: 0.870604813099 } }, twist: { linear: {x: 0.0 , y: 0 ,z: 0 } , angular: { x: 0.0 , y: 0 , z: 0.0 } } , reference_frame: world } }";
-    ROS_INFO("Set position");
+    /// Set model name
+    srv.request.model_state.model_name = robot_name;
+    /// Set new pose from odometry information
+    srv.request.model_state.pose = msg.get()->pose.pose;
+    /// Set new twist from odometry information
+    srv.request.model_state.twist = msg.get()->twist.twist;
+    ROS_INFO("Send position");
     if(client.call(srv)) {
         ROS_INFO("Set new position");
     } else {
@@ -63,19 +59,17 @@ void set_model_state(const ros::TimerEvent&)
 int main(int argc, char **argv) {
 
     ros::init(argc, argv, "gazebo_position_bridge");
-    ros::NodeHandle nh, private_nh("~");
+    ros::NodeHandle nh;
 
     ROS_INFO("Started");
-
-    //Timer
-#ifdef GET
-    ros::Timer timer = nh.createTimer(ros::Duration(1), get_model_state);
-    client = nh.serviceClient<gazebo_msgs::GetModelState>("/gazebo/get_model_state");
-#endif
-    ros::Timer timer = nh.createTimer(ros::Duration(1), set_model_state);
+    /// Load robot name
+    nh.param<std::string>("robot_name", robot_name, "robot_model");
+    /// Service to set a new position
     client = nh.serviceClient<gazebo_msgs::SetModelState>("/gazebo/set_model_state");
+    /// Subscriber to receive information from position and orientation robot
+    ros::Subscriber sub = nh.subscribe("/gazebo/set_model_state", 1000, positionCallback);
 
-    // Process remainder of ROS callbacks separately, mainly ControlManager related
+    /// Process remainder of ROS callbacks separately, mainly ControlManager related
     ros::spin();
 
     return 0;
